@@ -1,133 +1,87 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #define SIZE 2 
-void multiplyMatrices(int a[SIZE][SIZE], int b[SIZE][1], int result[SIZE][1]) {
-    for (int i = 0; i < SIZE; i++) {
-        result[i][0] = 0;
-        for (int k = 0; k < SIZE; k++) {
-            result[i][0] += a[i][k] * b[k][0];
+int main() {
+    char plaintext[100], ciphertext[100], decrypted[100];
+    int key[SIZE][SIZE];
+    int i, j, k;
+    printf("Enter plaintext (only uppercase letters, max 98 characters): ");
+    scanf("%s", plaintext);
+    printf("Enter key matrix (%d x %d):\n", SIZE, SIZE);
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            scanf("%d", &key[i][j]);
         }
-        result[i][0] %= 26; 
     }
-}
+    int len = strlen(plaintext);
+    for (i = 0; i < len; i += SIZE) {
+        int matrix[SIZE][1];
+        for (j = 0; j < SIZE; j++) {
+            matrix[j][0] = plaintext[i + j] - 'A';
+        }
 
-void inverseMatrix(int key[SIZE][SIZE], int inv[SIZE][SIZE]) {
+        for (j = 0; j < SIZE; j++) {
+            int sum = 0;
+            for (k = 0; k < SIZE; k++) {
+                sum += key[j][k] * matrix[k][0];
+            }
+            ciphertext[i + j] = (sum % 26) + 'A';
+        }
+    }
+    ciphertext[len] = '\0'; 
+    printf("Encrypted Ciphertext: %s\n", ciphertext);
     int det = (key[0][0] * key[1][1] - key[0][1] * key[1][0]) % 26;
-    if (det < 0) det += 26; 
-    int invDet = 0;
-
-    for (int i = 1; i < 26; i++) {
-        if ((det * i) % 26 == 1) {
-            invDet = i;
+    int detInv = -1;
+    for (int x = 1; x < 26; x++) {
+        if ((det * x) % 26 == 1) {
+            detInv = x;
             break;
         }
     }
-
-    inv[0][0] = (key[1][1] * invDet) % 26;
-    inv[0][1] = (-key[0][1] * invDet) % 26;
-    inv[1][0] = (-key[1][0] * invDet) % 26;
-    inv[1][1] = (key[0][0] * invDet) % 26;
-
-    for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            if (inv[i][j] < 0) inv[i][j] += 26; 
-        }
+    if (detInv == -1) {
+        printf("Matrix is not invertible; decryption cannot proceed.\n");
+        return 1;
     }
-}
+    int adj[SIZE][SIZE];
+    adj[0][0] = key[1][1];
+    adj[0][1] = -key[0][1];
+    adj[1][0] = -key[1][0];
+    adj[1][1] = key[0][0];
 
-int charToInt(char c) {
-    return c - 'a';
-}
-
-char intToChar(int i) {
-    return i + 'a';
-}
-
-void encryptHillCipher(char* plaintext, int key[SIZE][SIZE], char* ciphertext) {
-    int length = strlen(plaintext);
-    int plaintextMatrix[SIZE][1];
-    int keyMatrix[SIZE][SIZE] = {0};
-    int resultMatrix[SIZE][1];
-
-    for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            keyMatrix[i][j] = key[i][j];
-        }
-    }
-
-    for (int i = 0; i < length; i += SIZE) {
-        for (int j = 0; j < SIZE; j++) {
-            if (i + j < length) {
-                plaintextMatrix[j][0] = charToInt(plaintext[i + j]);
-            } else {
-                plaintextMatrix[j][0] = 0; 
+    int inverseKey[SIZE][SIZE];
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            inverseKey[i][j] = (adj[i][j] * detInv) % 26;
+            if (inverseKey[i][j] < 0) {
+                inverseKey[i][j] += 26;
             }
         }
+    }
+    for (i = 0; i < len; i += SIZE) {
+        int matrix[SIZE][1];
+        for (j = 0; j < SIZE; j++) {
+            matrix[j][0] = ciphertext[i + j] - 'A';
+        }
 
-        multiplyMatrices(keyMatrix, plaintextMatrix, resultMatrix);
-
-        for (int j = 0; j < SIZE; j++) {
-            ciphertext[i + j] = intToChar(resultMatrix[j][0]);
+        for (j = 0; j < SIZE; j++) {
+            int sum = 0;
+            for (k = 0; k < SIZE; k++) {
+                sum += inverseKey[j][k] * matrix[k][0];
+            }
+            decrypted[i + j] = (sum % 26 + 26) % 26 + 'A'; 
         }
     }
-    ciphertext[length] = '\0'; 
-}
-
-void decryptHillCipher(char* ciphertext, int key[SIZE][SIZE], char* plaintext) {
-    int length = strlen(ciphertext);
-    int ciphertextMatrix[SIZE][1];
-    int keyMatrix[SIZE][SIZE] = {0};
-    int invKeyMatrix[SIZE][SIZE] = {0};
-    int resultMatrix[SIZE][1];
-
-    for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            keyMatrix[i][j] = key[i][j];
-        }
-    }
-
-    inverseMatrix(keyMatrix, invKeyMatrix);
-
-    for (int i = 0; i < length; i += SIZE) {
-        for (int j = 0; j < SIZE; j++) {
-            ciphertextMatrix[j][0] = charToInt(ciphertext[i + j]);
-        }
-
-        multiplyMatrices(invKeyMatrix, ciphertextMatrix, resultMatrix);
-
-        for (int j = 0; j < SIZE; j++) {
-            plaintext[i + j] = intToChar(resultMatrix[j][0]);
-        }
-    }
-    plaintext[length] = '\0'; 
-}
-
-int main() {
-    char plaintext[100];
-    int key[SIZE][SIZE] = {{9, 4}, {5, 7}};
-    char ciphertext[100];
-    char decryptedtext[100];
-
-    printf("Enter plaintext (lowercase letters only): ");
-    fgets(plaintext, sizeof(plaintext), stdin);
-    plaintext[strcspn(plaintext, "\n")] = '\0'; 
-    char temp[100];
-    int index = 0;
-    for (int i = 0; plaintext[i] != '\0'; i++) {
-        if (plaintext[i] != ' ') {
-            temp[index++] = plaintext[i];
-        }
-    }
-    temp[index] = '\0';
-    strcpy(plaintext, temp);
-
-    encryptHillCipher(plaintext, key, ciphertext);
-    printf("Ciphertext: %s\n", ciphertext);
-
-    decryptHillCipher(ciphertext, key, decryptedtext);
-    printf("Decrypted text: %s\n", decryptedtext);
+    decrypted[len] = '\0'; 
+    printf("Decrypted Plaintext: %s\n", decrypted);
 
     return 0;
 }
+
+/*OUTPUT:
+Enter plaintext (only uppercase letters, max 98 characters): MEETME
+Enter key matrix (2 x 2):
+9 4
+5 7
+Encrypted Ciphertext: UKIXUK
+Decrypted Plaintext: MEETME*/
